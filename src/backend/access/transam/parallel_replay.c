@@ -5110,7 +5110,13 @@ dispatcherWorkerLoop(void)
 		addDispatchDataToTxn(dispatch_data, true);
 
 		sync_needed = isSyncAfterDispatchNeeded(reader) ?  true : false;
-		for (worker_list = dispatch_data->worker_list; *worker_list > PR_DISPATCHER_WORKER_IDX; worker_list++)
+        int copy_worklist_num = dispatch_data->n_involved + 1;
+        int* copy_worklist =  palloc(sizeof(int) * copy_worklist_num);
+        for (int i = 0; i < copy_worklist_num; i++)
+        {
+            copy_worklist[i] = dispatch_data->worker_list[i];
+        }
+        for (worker_list = copy_worklist; *worker_list > PR_DISPATCHER_WORKER_IDX; worker_list++)
 		{
 #ifdef WAL_DEBUG
 			if (*worker_list == PR_TXN_WORKER_IDX)
@@ -5121,6 +5127,7 @@ dispatcherWorkerLoop(void)
 #endif
 			PR_enqueue(dispatch_data, XLogDispatchData, *worker_list);
 		}
+        pfree(copy_worklist);
 		if (sync_needed)
 			PR_syncAll(false);
 
